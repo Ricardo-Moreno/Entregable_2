@@ -1,129 +1,124 @@
+const fs = require('fs').promises;
+
 class ProductManager {
-    constructor(productos = []) {
-        this.productos = productos
-    } getId() {
+    constructor(path) {
+        this.path = path;
+        this.productos = [];
+    }
+
+    async loadProducts() {
+        try {
+            const data = await fs.readFile(this.path, 'utf-8');
+            this.productos = JSON.parse(data);
+        } catch (error) {
+            console.log('Error al cargar los productos:', error);
+        }
+    }
+
+    async saveProducts() {
+        try {
+            await fs.writeFile(this.path, JSON.stringify(this.productos, null, 2), 'utf-8');
+            console.log('Productos guardados correctamente.');
+        } catch (error) {
+            console.log('Error al guardar los productos:', error);
+        }
+    }
+
+    getId() {
         return this.productos.length + 1;
     }
-    addProduct({ title, descripccion, price, thumnail, code, stock }) {
 
-        if (!title || !descripccion || !price || !thumnail || !code || !stock) {
-            console.log("Hay campos vacios")
-            return
-        } if (this.productos.some((product) => product.code == code)) {
-            console.log("un elemento con este codigo ya existe")
-            console.log(`este es el prodcuto que tiene el code repetido ${title}`)
-            return
+    async addProduct({ title, description, price, thumbnail, code, stock }) {
+        if (!title || !description || !price || !thumbnail || !code || !stock) {
+            console.log('Hay campos vacíos');
+            return;
         }
-        const id = this.getId()
-        const product = { id: id, title, descripccion, price, thumnail, code, stock }
-        this.productos.push(product)
 
-    } getProducts() {
-        return this.productos
-    } getProductById(id) {
-        const producto = this.productos.find((product) => product.id === id)
-        if (producto) return producto;
-        console.log(`el producto con el id:${id} no existe`)
+        if (this.productos.some((product) => product.code === code)) {
+            console.log('Un elemento con este código ya existe');
+            console.log(`Este es el producto que tiene el código repetido: ${title}`);
+            return;
+        }
+
+        const id = this.getId();
+        const product = { id, title, description, price, thumbnail, code, stock };
+        this.productos.push(product);
+        await this.saveProducts();
+    }
+
+    async getProducts() {
+        await this.loadProducts();
+        return this.productos;
+    }
+
+    async getProductById(id) {
+        await this.loadProducts();
+        const product = this.productos.find((product) => product.id === id);
+        if (product) {
+            return product;
+        }
+        console.log(`El producto con el ID ${id} no existe`);
+    }
+
+    async updateProduct(id, updatedFields) {
+        await this.loadProducts();
+        const productIndex = this.productos.findIndex((product) => product.id === id);
+        if (productIndex !== -1) {
+            this.productos[productIndex] = { ...this.productos[productIndex], ...updatedFields };
+            await this.saveProducts();
+            console.log(`Producto con ID ${id} actualizado correctamente.`);
+        } else {
+            console.log(`El producto con el ID ${id} no existe`);
+        }
+    }
+
+    async deleteProduct(id) {
+        await this.loadProducts();
+        const productIndex = this.productos.findIndex((product) => product.id === id);
+        if (productIndex !== -1) {
+            this.productos.splice(productIndex, 1);
+            await this.saveProducts();
+            console.log(`Producto con ID ${id} eliminado correctamente.`);
+        } else {
+            console.log(`El producto con el ID ${id} no existe`);
+        }
     }
 }
 
+// Ejemplo de uso
+const productManager = new ProductManager('productos.json');
 
-const manager = new ProductManager()
+async function testProductManager() {
+    await productManager.loadProducts();
 
-const producto1 = {
-    title: "Camiseta",
-    descripccion: "Camiseta de algodón",
-    price: 15000,
-    thumnail: "https://image.com/camiseta1",
-    code: 1001,
-    stock: 100
-};
+    await productManager.addProduct({
+        title: 'Producto 1',
+        description: 'Descripción del producto 1',
+        price: 10.99,
+        thumbnail: 'thumbnail1.jpg',
+        code: '001',
+        stock: 10
+    });
 
-const producto2 = {
-    title: "Mochila",
-    descripccion: "Mochila escolar",
-    price: 25000,
-    thumnail: "https://image.com/mochila1",
-    code: 1002,
-    stock: 50
-};
+    await productManager.addProduct({
+        title: 'Producto 2',
+        description: 'Descripción del producto 2',
+        price: 19.99,
+        thumbnail: 'thumbnail2.jpg',
+        code: '002',
+        stock: 5
+    });
 
-const producto3 = {
-    title: "Laptop",
-    descripccion: "Laptop HP 15.6 pulgadas",
-    price: 120000,
-    thumnail: "https://image.com/laptop1",
-    code: 1003,
-    stock: 20
-};
+    const products = await productManager.getProducts();
+    console.log('Productos:', products);
 
-const producto4 = {
-    title: "Audífonos",
-    descripccion: "Audífonos inalámbricos con cancelación de ruido",
-    price: 50000,
-    thumnail: "https://image.com/audifonos1",
-    code: 1004,
-    stock: 80
-};
+    const product = await productManager.getProductById(1);
+    console.log('Producto con ID 1:', product);
 
-const producto5 = {
-    title: "Reloj",
-    descripccion: "Reloj de pulsera resistente al agua",
-    price: 35000,
-    thumnail: "https://image.com/reloj1",
-    code: 1005,
-    stock: 30
-};
+    await productManager.updateProduct(2, { price: 24.99, stock: 3 });
 
-const producto6 = {
-    title: "Cámara",
-    descripccion: "Cámara profesional para fotografía",
-    price: 800000,
-    thumnail: "https://image.com/camara1",
-    code: 1006,
-    stock: 10
-};
+    await productManager.deleteProduct(1);
+}
 
-const producto7 = {
-    title: "Libro",
-    descripccion: "Libro de ciencia ficción",
-    price: 20000,
-    thumnail: "https://image.com/libro1",
-    code: 1007,
-    stock: 200
-};
+testProductManager();
 
-const producto8 = {
-    title: "Zapatos",
-    descripccion: "Zapatos deportivos para running",
-    price: 90000,
-    thumnail: "https://image.com/zapatos1",
-    code: 1008,
-    stock: 40
-};
-
-const producto9 = {
-    title: "Tablet",
-    descripccion: "Tablet de 10 pulgadas con Android",
-    price: 100000,
-    thumnail: "https://image.com/tablet1",
-    code: 1009,
-    stock: 15
-};
-
-const producto10 = {
-    title: "Teclado",
-    descripccion: "Teclado mecánico para gaming",
-    price: 70000,
-    thumnail: "https://image.com/teclado1",
-    code: 1010,
-    stock: 25
-};
-
-
-
-manager.addProduct(producto1)
-// const get = manager.getProducts()
-// console.log(get)
-// const getProductById = manager.getProductById(5)
-// console.log(getProductById)
